@@ -96,6 +96,45 @@ const handle_Details = function(res, criteria) {
 }
 
 
+const handle_Edit = function(res, criteria) {
+    const client = new MongoClient(mongourl);
+    client.connect(function(err) {
+        assert.equal(null, err);
+        console.log("Connected successfully to server");
+        const db = client.db(dbName);
+
+        let documentID = {};
+        documentID['_id'] = ObjectID(criteria._id)
+        let cursor = db.collection('Library_document_info').find(documentID);
+        cursor.toArray(function(err,docs) {
+            client.close();
+            assert.equal(err,null);
+            res.status(200).render('edit',{item: docs[0]});
+
+        });
+    });
+}
+
+const updateDocument = function(criteria, updatedocument, callback){
+    const client = new MongoClient(mongourl);
+    client.connect(function(err){
+        assert.equal(null, err);
+        console.log("Connected successfully to server");
+        const db = client.db(dbName);
+        console.log(criteria);
+	console.log(updatedocument);
+	
+        db.collection('Library_document_info').updateOne(criteria,{
+                $set: updatedocument
+            }, function(err, results){
+                client.close();
+                assert.equal(err, null);
+                return callback(results);
+            }
+        );
+    });
+}
+
 app.get('/', function(req, res) {
   if (!req.session.authenticated) {
     console.log("...Not authenticated; directing to login");
@@ -196,6 +235,43 @@ app.post('/create', function(req, res){
     
 });
 
+
+const deleteDocument = function(db, criteria, callback){
+console.log(criteria);
+	db.collection('Library_document_info').deleteOne(criteria, function(err, results){
+	assert.equal(err, null);
+	console.log(results);
+	return callback();
+	});
+
+};
+
+const handle_Delete = function(res, criteria) {
+    const client = new MongoClient(mongourl);
+    client.connect(function(err) {
+        console.log("Connected successfully to server");
+        const db = client.db(dbName);
+	
+	let deldocument = {};
+	
+        deldocument["_id"] = ObjectID(criteria._id);
+        deldocument["ownerID"] = criteria.owner;
+        console.log(deldocument["_id"]);
+        console.log(deldocument["ownerID"]);
+        
+        deleteDocument(db, deldocument, function(results){
+            client.close();
+            console.log("Closed DB connection");
+            res.status(200).render('info', {message: "Document is successfully deleted."});
+        })     
+    });
+    //client.close();
+    //res.status(200).render('info', {message: "Document is successfully deleted."});
+}
+
+
+
+
 app.post('/search', function(req, res){
     const client = new MongoClient(mongourl);
     client.connect(function(err){
@@ -228,6 +304,60 @@ app.get('/find', function(req, res){
 app.get('/details', function(req,res){
     handle_Details(res, req.query);
 });
+
+app.post('/update', function(req, res){
+    var updatedocument={};
+    const client = new MongoClient(mongourl);
+        client.connect(function(err){
+            assert.equal(null, err);
+            console.log("Connected successfully to server");
+            
+                if(req.body.phone_num){
+                updatedocument["ownerID"] = `${req.session.userid}`
+                updatedocument['Telephone_Number']= req.body.phone_num;
+                updatedocument['Date']= req.body.date;
+                updatedocument['Borrow_or_Return']= req.body.borrow_or_return;
+                updatedocument['Remark']= req.body.remark;
+
+                var bookinfo ={};
+                bookinfo['Book_Type'] = req.body.book_type;
+                if(req.body.book_name){
+                    bookinfo['Book_Name'] = req.body.book_name;
+                }
+                updatedocument['Book_Information'] = bookinfo;
+
+        	let updateDoc = {};
+                updateDoc['UserName'] = req.body.postId;
+                console.log(updateDoc);
+
+                updateDocument(updateDoc, updatedocument, function(docs) {
+                    client.close();
+                    console.log("Closed DB connection");
+                    return res.render('info', {message: "Document is updated successfully!."});
+                    
+                })
+            }
+            else{
+            	return res.render('info', {message: "Invalid entry - User Name is compulsory!"});
+            }
+    });
+    
+});
+
+
+app.get('/edit', function(req,res) {
+    handle_Edit(res, req.query);
+})
+
+app.get('/delete', function(req, res){
+    if(req.query.owner == req.session.userid){
+        console.log("...Hello !");
+        handle_Delete(res, req.query);
+    }else{
+        return res.status(200).render('info', {message: "Access denied - You don't have the access and deletion right!"}); 
+    }
+});
+
 
 // Restful find
 app.get('/api/item/UserName/:UserName', function(req,res) {
