@@ -166,6 +166,15 @@ app.post('/login', function(req, res){
 });
 
 
+const greetingMsg = (name = null, includeTime = false) => {
+  let today = new Date();
+  let msg = (name != null) ? 'Hello ' + U + '! ' : 'Hello there!';
+  if (includeTime) {
+    msg += ` It is now ${today.toTimeString()}`;
+  }
+  return msg;
+};
+
 
 
 //logout
@@ -183,6 +192,9 @@ app.get('/list', function(req, res){
 
 app.get('/home', function(req, res){
     console.log("...Welcome to the home page!");
+    
+
+    
     return res.status(200).render("home");
 });
 
@@ -354,7 +366,10 @@ app.get('/delete', function(req, res){
         console.log("...Hello !");
         handle_Delete(res, req.query);
     }else{
-        return res.status(200).render('info', {message: "Access denied - You don't have the access and deletion right!"}); 
+        return res.status(200).render('info', {message: "Access denied - You don't have the access and deletion right!",
+        extraMessage: "Only the owner with ID " + req.session.userid + " can delete it."}
+        
+        ); 
     }
 });
 
@@ -384,7 +399,3 @@ app.get('/api/item/UserName/:UserName', function(req,res) {
 
 
 
-app.listen(3000, () => {
-  console.log('Server is running on port 3000');
-});
-//app.listen(app.listen(process.env.PORT || 8099));
